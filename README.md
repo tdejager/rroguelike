@@ -4,3 +4,6 @@
 
 Following the roguelike tutorials at:
    roguelike: https://tomassedovic.github.io/roguelike-tutorial/
+
+## Requirements
+ Requires SDL1.2 to be installed
