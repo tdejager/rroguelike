@@ -1,3 +1,5 @@
+[![Build Status](https://travis-ci.org/tdejager/rroguelike.svg?branch=master)](https://travis-ci.org/tdejager/rroguelike)
+
 ## Roguelike tutorial
 
 Following the roguelike tutorials at:
