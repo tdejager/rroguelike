@@ -37,6 +37,15 @@ const MAX_ROOM_MONSTERS: i32 = 3;
 
 const PLAYER: usize = 0;
 
+
+
+#[derive(Clone, Copy, Debug, PartialEq)]
+enum PlayerAction {
+    TookTurn,
+    DidntTakeTurn,
+    Exit,
+}
+
 #[derive(Clone, Copy, Debug)]
 struct Rect {
     x1: i32,
@@ -217,6 +226,24 @@ pub fn move_by(id: usize, dx: i32, dy: i32, map: &Map, objects: &mut [Object]) {
     }
 }
 
+pub fn player_move_or_attack(dx: i32, dy: i32, map: &Map, objects: &mut [Object]) {
+    let x = objects[PLAYER].x + dx;
+    let y = objects[PLAYER].y + dy;
+
+    let target_id = objects.iter().position(|object| {
+        object.pos() == (x, y)
+    });
+
+    match target_id {
+        // A monster was found
+        Some(id) => {
+            println!("The {} laughs at your puny effort to attack him!", objects[id].name);
+        }
+        // No monster was found
+        None => move_by(PLAYER, dx, dy, map, objects)
+    }
+}
+
 fn place_objects(room: Rect, map: &Map, objects: &mut Vec<Object>) {
     // choose random number of monsters
     //
@@ -227,12 +254,12 @@ fn place_objects(room: Rect, map: &Map, objects: &mut Vec<Object>) {
         let y = rand::thread_rng().gen_range(room.y1 + 1, room.y2);
 
         if !is_blocked(x, y, map, objects) {
-            let monster = if rand::random::<f32>() < 0.8 {
+            let mut monster = if rand::random::<f32>() < 0.8 {
                 Object::new(x, y, 'o', "orc", colors::GREEN, true)
             } else {
                 Object::new(x, y, 'T', "Troll", colors::DARKER_GREEN, true)
             };
-
+            monster.alive = true;
             objects.push(monster);
         }
     }
@@ -245,7 +272,6 @@ fn is_blocked(x: i32, y: i32, map: &Map, objects: &[Object]) -> bool {
     }
     //println!("x {}, y {} is blocked", x, y);
 
-
     // now check for any blocking objects
    let monster_block = objects.iter().any(|object| {
         object.blocks && object.pos() == (x, y)
@@ -256,29 +282,42 @@ fn is_blocked(x: i32, y: i32, map: &Map, objects: &[Object]) -> bool {
 
 }
 
-fn handle_keys(root: &mut Root, objects: &mut Vec<Object>, map: &Map) -> bool  {
+fn handle_keys(root: &mut Root, objects: &mut Vec<Object>, map: &Map) -> PlayerAction  {
     use tcod::input::Key;
     use tcod::input::KeyCode::*;
+    use PlayerAction::*;
 
-
+    let player_alive = objects[PLAYER].alive;
     let key: Key = root.wait_for_keypress(true);
 
-    match key {
+    match (key, player_alive) {
         // Toggle fullscreen
-        Key { code: Enter, ctrl: true, ..} => {
+        (Key { code: Enter, ctrl: true, ..} , true)=> {
             let fullscreen = root.is_fullscreen();
             root.set_fullscreen(fullscreen);
+            DidntTakeTurn
         }
         // movement keys
-        Key { code: Up, .. }    => move_by(PLAYER, 0, -1, map, objects),
-        Key { code: Down, .. }  => move_by(PLAYER, 0, 1, map, objects),
-        Key { code: Left, .. }  => move_by(PLAYER, -1, 0, map, objects),
-        Key { code: Right, .. } => move_by(PLAYER, 1, 0, map, objects),
-        Key { code: Escape, ..} => { return true }
+        (Key { code: Up, .. }, true)    => {
+            player_move_or_attack(0, -1, map, objects);
+            TookTurn
+        },
+        (Key { code: Down, .. }, true)  => {
+            player_move_or_attack(0, 1, map, objects);
+            TookTurn
+        },
+        (Key { code: Left, .. }, true)  => {
+            player_move_or_attack(-1, 0, map, objects);
+            TookTurn
+        },
+        (Key { code: Right, .. }, true) => {
+            player_move_or_attack(1, 0, map, objects);
+            TookTurn
+        },
+        (Key { code: Escape, ..}, _) => { Exit }
 
-        _ => {},
+        _ => DidntTakeTurn,
     }
-    false
 }
 
 fn render_all(root: &mut Root, con: &mut Offscreen, objects: &[Object], map: &mut Map, fov_map: &mut tcod::map::Map, fov_recompute: bool) {
@@ -367,9 +406,19 @@ fn main() {
             let player = &objects[PLAYER];
             previous_player_position = (player.x, player.y);
         }
-        let exit = handle_keys(&mut root, &mut objects, &map);
-        if exit {
+        let player_action = handle_keys(&mut root, &mut objects, &map);
+
+        if player_action == PlayerAction::Exit{
             break
+        }
+
+        if objects[PLAYER].alive && player_action != PlayerAction::DidntTakeTurn {
+            for object in &objects {
+
+                if (object as *const _) != (&objects[PLAYER] as *const _) {
+                    println!("The {} growls", object.name);
+                }
+            }
         }
     }
 }
