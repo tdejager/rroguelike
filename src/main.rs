@@ -8,6 +8,8 @@ use tcod::map::{FovAlgorithm, Map as FovMap};
 use rand::Rng;
 use std::cmp;
 
+use tcod::input::{self, Event, Key, Mouse};
+
 // Screen globals
 const SCREEN_WIDTH: i32 = 80;
 const SCREEN_HEIGHT: i32 = 50;
@@ -429,13 +431,12 @@ fn is_blocked(x: i32, y: i32, map: &Map, objects: &[Object]) -> bool {
 
 }
 
-fn handle_keys(root: &mut Root, objects: &mut Vec<Object>, map: &Map, messages: &mut Messages) -> PlayerAction  {
+fn handle_keys(key: Key, root: &mut Root, objects: &mut Vec<Object>, map: &Map, messages: &mut Messages) -> PlayerAction  {
     use tcod::input::Key;
     use tcod::input::KeyCode::*;
     use PlayerAction::*;
 
     let player_alive = objects[PLAYER].alive;
-    let key: Key = root.wait_for_keypress(true);
 
     match (key, player_alive) {
         // Toggle fullscreen
@@ -467,13 +468,28 @@ fn handle_keys(root: &mut Root, objects: &mut Vec<Object>, map: &Map, messages: 
     }
 }
 
+/// Return a string with the names of all objects under the mouse
+fn get_names_under_mouse(mouse: Mouse, objects: &[Object], fov_map: &FovMap) -> String {
+    let (x, y) = (mouse.cx as i32, mouse.cy as i32);
+
+    // Create a list with the names of all objects ath the mouses coordinates and in FOV
+    let names = objects.iter()
+        .filter(|obj| {obj.pos() == (x, y) && fov_map.is_in_fov(obj.x, obj.y)})
+        .map(|obj| obj.name.clone())
+        .collect::<Vec<_>>();
+
+    names.join(", ")
+}
+
 fn render_all(root: &mut Root,
               con: &mut Offscreen,
               objects: &[Object],
               map: &mut Map,
               fov_map: &mut tcod::map::Map,
               fov_recompute: bool,
-              panel: &mut Offscreen, messages: &Messages) {
+              mouse: Mouse,
+              panel: &mut Offscreen,
+              messages: &Messages) {
 
     if fov_recompute {
         // Recompute fov if needed
@@ -530,6 +546,11 @@ fn render_all(root: &mut Root,
                hp,
                max_hp,
                colors::LIGHT_RED, colors::DARKER_RED);
+
+    // display names of objects under the mouse
+    panel.set_default_foreground(colors::LIGHT_GREY);
+    panel.print_ex(1, 0, BackgroundFlag::None, TextAlignment::Left,
+                    get_names_under_mouse(mouse, objects, fov_map));
 
     // print the game messages one line at a time
     let mut y = MSG_HEIGHT as i32;
@@ -623,15 +644,26 @@ fn main() {
             "Welcome stranger! Prepare to perish in the ST horror dungeon",
             colors::RED);
 
+    let mut mouse = Default::default();
+    let mut key = Default::default();
+
     let mut previous_player_position = (-1, -1);
     while !root.window_closed() {
         con.set_default_foreground(colors::WHITE);
+
+        match input::check_for_event(input::MOUSE | input::KEY_PRESS) {
+            Some((_, Event::Mouse(m))) => mouse = m,
+            Some((_, Event::Key(k))) => key = k,
+            _ => key = Default::default()
+
+        };
 
         let fov_recompute = previous_player_position != objects[PLAYER].pos();
         render_all(&mut root, &mut con,
                    &objects, &mut map,
                    &mut fov_map,
                    fov_recompute,
+                   mouse,
                    &mut panel, &messages);
         root.flush();
 
@@ -644,7 +676,7 @@ fn main() {
             let player = &objects[PLAYER];
             previous_player_position = (player.x, player.y);
         }
-        let player_action = handle_keys(&mut root, &mut objects, &map, &mut messages);
+        let player_action = handle_keys(key, &mut root, &mut objects, &map, &mut messages);
 
         if player_action == PlayerAction::Exit{
             break
