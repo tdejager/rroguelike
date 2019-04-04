@@ -11,8 +11,8 @@ use std::cmp;
 use tcod::input::{self, Event, Key, Mouse};
 
 // Screen globals
-const SCREEN_WIDTH: i32 = 80;
-const SCREEN_HEIGHT: i32 = 50;
+const SCREEN_WIDTH: i32 = 100;
+const SCREEN_HEIGHT: i32 = 60;
 const LIMIT_FPS: i32 = 20;
 // Sizes and coordinates relevant for the GUI
 const BAR_WIDTH: i32 = 20;
@@ -797,7 +797,9 @@ fn render_bar(panel: &mut Offscreen,
 
 fn main() {
     let mut root = Root::initializer()
-        .font("/Users/timdejager/.cargo/registry/src/github.com-1ecc6299db9ec823/tcod-0.12.1/fonts/consolas12x12_gs_tc.png", FontLayout::Tcod)
+        //.font("/Users/timdejager/.cargo/registry/src/github.com-1ecc6299db9ec823/tcod-0.12.1/fonts/consolas12x12_gs_tc.png", FontLayout::Tcod)
+        .font("/home/tim/.cargo/registry/src/github.com-1ecc6299db9ec823/tcod-0.12.1/fonts/consolas12x12_gs_tc.png", FontLayout::Tcod)
+
         .font_type(FontType::Greyscale)
         .size(SCREEN_WIDTH, SCREEN_HEIGHT)
         .title("Rust/libtcod tutorial")
